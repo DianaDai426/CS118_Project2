@@ -124,7 +124,7 @@ int main (int argc, char *argv[])
     servaddr.sin_addr = servIP;
     servaddr.sin_port = htons(servPort);
     memset(servaddr.sin_zero, '\0', sizeof(servaddr.sin_zero));
-
+ 
     int servaddrlen = sizeof(servaddr);
 
     // NOTE: We set the socket as non-blocking so that we can poll it until
@@ -144,15 +144,18 @@ int main (int argc, char *argv[])
     struct packet synpkt, synackpkt;
 
     unsigned short seqNum = rand() % MAX_SEQN;
+
     buildPkt(&synpkt, seqNum, 0, 1, 0, 0, 0, 0, NULL);
 
     printSend(&synpkt, 0);
+    /* TCP SYN */
     sendto(sockfd, &synpkt, PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
     double timer = setTimer();
     int n;
 
     while (1) {
         while (1) {
+            /* receive SYNACK */
             n = recvfrom(sockfd, &synackpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
 
             if (n > 0)
@@ -190,12 +193,41 @@ int main (int argc, char *argv[])
     // =====================================
     // Send First Packet (ACK containing payload)
 
-    m = fread(buf, 1, PAYLOAD_SIZE, fp);
+    // ===== send 10 packets ========
+        /*
+        while(data left in message and buffer not full)
+            if msg > 512 bytes
+                read 512 bytes, put into packet 
+            else 
+                read msg_len bytes and pad with 0s to 512
+            
+            put packet into client buffer (if there's space in window)
+                if window full of unacked pkts, wait until window gets ack 
 
+
+            from buffer/window: 
+                while (unsent packets in buffer = nextseqnum < base + N )
+                    send oldest unsent packets to server ( sendto() )
+                        keep packet in buffer (as unacked/sent pkt) until acked 
+                            if window receives ack (assume it is the oldest unacked)- remove acked packet from window, open window to accept unsent pkt 
+                    nextseqnum ++ 
+
+        
+        */
+    // ===== finish break up files into packets ========
+
+
+
+    m = fread(buf, 1, PAYLOAD_SIZE, fp);
+    //buildPkt(struct packet* pkt, unsigned short seqnum, unsigned short acknum, char syn, char fin, char ack, char dupack, unsigned int length, const char* payload)
+
+                                            /* syn = 0, fin = 0, ack = 1, dupack = 0 */
     buildPkt(&pkts[0], seqNum, (synackpkt.seqnum + 1) % MAX_SEQN, 0, 0, 1, 0, m, buf);
     printSend(&pkts[0], 0);
+    /* send ACK for SYNACK */
     sendto(sockfd, &pkts[0], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
     timer = setTimer();
+                                            /* syn = 0, fin = 0, ack = 0, dupack = 1 */
     buildPkt(&pkts[0], seqNum, (synackpkt.seqnum + 1) % MAX_SEQN, 0, 0, 0, 1, m, buf);
 
     e = 1;
@@ -209,6 +241,7 @@ int main (int argc, char *argv[])
     //       handling data loss.
     //       Only for demo purpose. DO NOT USE IT in your final submission
     while (1) {
+        /* receive ACK of first packet */
         n = recvfrom(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
         if (n > 0) {
             break;
