@@ -189,12 +189,73 @@ int main (int argc, char *argv[])
     int s = 0;
     int e = 0;
     int full = 0;
+    int baseNum = 0; 
+    int nextSeqNum = 0; 
 
     // =====================================
     // Send First Packet (ACK containing payload)
 
     // ===== send 10 packets ========
+
+        /* 
+        case 1: pkts is full, fp is not EOF 
+            if(pkts is full and not EOF): 
+                chekc for acks 
+                if(receive ack):
+                    base = getacknum(rcvpkt)+1
+                    kick the packet out of the window
+                    go back to while(pkts is not filled) 
+                                if(receive ack):
+                    base = getacknum(rcvpkt)+1
+                    kick the packet out of the window s 
+            if(EOF): 
+                break 
+            if (pkts is not full and not EOF)
+                case2()
+
+        func case 2: pkts is not full 
+             while(pkts is not filled AND not EOF):    
+                check ack  = if receive ack, kick out the packet, base++
+                read file and buildPkt, send packet, push it(not-yet-acked) into pkts
+                check ack  = if receive ack, kick out the packet, base++
+                            
+                //nextseqnum = first unsent packet in pkts
+                //base = first not-yet-acked in pkts
+                while (nextseqnum < base+N):
+                    send(packet)
+                    nextseqnum++
+            if (EOF): 
+                break 
+            if(pkts is filled and not EOF): 
+                case1() 
+
+        terminate connection 
+
+        //things to figure out:    
+            //keep track of nextSeqNum and Base 
+            //keep track of whether payload is full, else pad with 0s
+            //how to check for acks? (check recvFrom ack flag )
+
+        */ 
+
+       void case1() {
+
+       }
+       
+       void case2() {
+
+       }
         /*
+
+        
+           
+
+
+            if(EOF):
+                break
+            
+
+
         while(data left in message and buffer not full)
             if msg > 512 bytes
                 read 512 bytes, put into packet 
@@ -240,6 +301,36 @@ int main (int argc, char *argv[])
     //       single data packet, and then tears down the connection without
     //       handling data loss.
     //       Only for demo purpose. DO NOT USE IT in your final submission
+
+    //  seqnum = bits that is expected from the next msg
+
+    /* 
+    int bytes = fp.size() ; 
+    int n = nextSeqNum ; 
+    int ackNum = (synackpkt.seqnum + 1) % MAX_SEQN
+    
+    while(fp != EOF; and pn < WND_SIZE) : 
+        seqNum ++ 1; = 1
+        ackNum 
+        n += 1; 
+        if(bytes >= 512){
+;            m = fread(buf, 1, PAYLOaD_SIZE, fp);
+        buildPkt(&pkts[n], seqNum, ackNum, 0, 0, 0, 0, m, buf);
+        
+            bytes -= 512; 
+        } 
+        else{ 
+            m = fread(buf, 1, bytes, fp)
+            //pad with 0s till 512 
+            bytes = 0;  
+        }
+
+        //reset n, 
+        //account for sent, unacked packets 
+
+
+    */ 
+
     while (1) {
         /* receive ACK of first packet */
         n = recvfrom(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
