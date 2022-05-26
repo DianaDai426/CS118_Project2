@@ -22,12 +22,12 @@
 
 // Packet Structure: Described in Section 2.1.1 of the spec. DO NOT CHANGE!
 struct packet {
-    unsigned short seqnum;
-    unsigned short acknum;
-    char syn;
-    char fin;
-    char ack;
-    char dupack;
+    unsigned short seqnum; // start bit of packet
+    unsigned short acknum; // expected seqnum from next packet 
+    char syn; // 1 if it is a connection request 
+    char fin; // 1 if it is a connection close request
+    char ack; // 1 if it is an ack
+    char dupack; // 1 if it is an duplicate ack
     unsigned int length;
     char payload[PAYLOAD_SIZE];
 };
@@ -82,6 +82,40 @@ int isTimeout(double end) {
     gettimeofday(&s, NULL);
     double start = (double) s.tv_sec + (double) s.tv_usec/1000000;
     return ((end - start) < 0.0);
+}
+
+void receiveAcks(int s, int e, int sockfd, struct packet ackpkt, struct sockaddr_in servaddr, int servaddrlen){
+    int n = recvfrom(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
+    printRecv(&ackpkt);
+    if(n > 0){
+        // receive an ack
+        
+    }
+}
+
+/*
+    case 1: pkts is full (of not-yet acked packets), fp is not EOF
+*/
+void case1(int s, int e, struct packet pkts[WND_SIZE], int sockfd, struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen){
+    /* assume we checked pkts is full and not EOF already */
+    int n;
+    int received = 0;
+    while(1){ // keep receiving acks
+        while(1){ // loop until receive an ack
+            int n = recvfrom(sockfd, &recvpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
+            if (n > 0 && recvpkt.ack==1){ // receive an ack
+                if (recvpkt.seqnum == pkts[s].seqnum){ // the ack is of the first packet in pkts
+                    break;
+                }
+            }
+        }
+        /* process the received ack */
+        s+=1; // kick the packet out of the window
+        received = 0; // ready to receive another ack   
+        /*
+            i did not check for EOF because no file is read
+        */
+    }
 }
 
 // =====================================
@@ -236,15 +270,7 @@ int main (int argc, char *argv[])
             //keep track of whether payload is full, else pad with 0s
             //how to check for acks? (check recvFrom ack flag )
 
-        */ 
-
-       void case1() {
-
-       }
-       
-       void case2() {
-
-       }
+        */  
         /*
 
         
