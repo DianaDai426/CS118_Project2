@@ -255,9 +255,7 @@ int main (int argc, char *argv[])
                             
                 //nextseqnum = first unsent packet in pkts
                 //base = first not-yet-acked in pkts
-                while (nextseqnum < base+N):
-                    send(packet)
-                    nextseqnum++
+
             if (EOF): 
                 break 
             if(pkts is filled and not EOF): 
@@ -418,3 +416,35 @@ int main (int argc, char *argv[])
         }
     }
 }
+
+
+/*       
+       void case2(char buf[PAYLOAD_SIZE]) {
+
+           while(nextseqnum >= baseNum + N && !feof(fp)){ 
+            int a = recvfrom(sockfd, buf, BUFSIZE, MSG_DONTWAIT,
+            (struct sockaddr * ) & clientaddr, & clientlen);
+            if (a > 0 && getBit(buf, ACK)) {
+               slideWindow() //base += 1 
+               }
+            index = nextseqnum % N ; 
+            int bytes = fread(buf, 1, PAYLOAD_SIZE, fp);
+            if (bytes == 512){ 
+                buildPkt(&pkts[index], nextseqnum, ackNum, 0, 0, 0, 0, m, buf);
+            }
+
+
+            send(&pkts[index]); 
+            nextseqnum += PACKET_SIZE; 
+
+
+
+           }
+       }
+
+        void resetBuf(char *buf){ 
+            for(int i = 0; i < sizeof(buf); i++){ 
+                buf[i] = '0'; 
+        }
+    }
+*/
