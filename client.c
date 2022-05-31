@@ -95,42 +95,84 @@ int isfull(int s, int e){ // returns 1 if full
     if (e == s - 1){
         return 1; 
     }
+    if (e == s){ 
+        return 0; // empty
+    }
+    return 2 ; // neither full nor empty
 }
 
-void receiveAcks(int *s, int *e, struct packet pkts[WND_SIZE], int sockfd, struct packet *recvpkt, struct sockaddr_in servaddr, int servaddrlen){
+int receiveAcks(int *s, int *e, struct packet pkts[WND_SIZE], int sockfd, struct packet *recvpkt, struct sockaddr_in servaddr, int servaddrlen){
     int n = recvfrom(sockfd, recvpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
     printRecv(recvpkt);
     if(n > 0 && recvpkt->ack == 1 ){
+        if (recvpkt->seqnum == pkts[*s].seqnum){ 
             //pkts[*s] = NULL;
             *s = (*s+1)%10;
+            return 1; // received an ack, move the window
         }
     }
-
+    return 0; // receives an ack, not it is ignored
+}
 /*
     case 1: pkts is full (of not-yet acked packets), fp is not EOF
 */
-void case1(int s, int e, struct packet pkts[WND_SIZE], int sockfd, struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen){
+void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, struct packet pkts[WND_SIZE], int sockfd, int fp,  struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen){
     /* assume we checked pkts is full and not EOF already */
     int n;
     int received = 0;
-    while(1){ // keep receiving acks
+    //if pkts is full and EOF not reached
+    if(isFull(*s, *e)== 1 && !feof(fp)) {   
         while(1){ // loop until receive an ack
-            int n = recvfrom(sockfd, &recvpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
-            if (n > 0 && recvpkt.ack==1){ // receive an ack
-                if (recvpkt.seqnum == pkts[s].seqnum){ // the ack is of the first packet in pkts
-                    break;
-                }
-            }
+            if (receiveAcks(s, e, pkts, sockfd, &recvpkt, servaddr, servaddrlen) == 1){ 
+                break; 
+            }   
         }
-        /* process the received ack */
-        s+=1; // kick the packet out of the window
-        received = 0; // ready to receive another ack   
         /*
             i did not check for EOF because no file is read
         */
     }
+    if (isFull(*s,*e) == 2){ 
+        receiveAcks(s, e, pkts, sockfd, &recvpkt, servaddr, servaddrlen); 
+        case2(buf, nextSeqNum,  s, e, pkts, sockfd, fp, recvpkt, servaddr, servaddrlen);
+    }
 }
 
+/*
+    case 2: pkts is not full, 
+*/
+  void case2(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, struct packet pkts[WND_SIZE], int sockfd, int fp,  struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen) {
+
+        while(isFull(s, e) != 1 && !feof(fp)){ 
+            receiveAcks(s, e, pkts,  sockfd, &recvpkt, servaddr, servaddrlen); 
+
+            *e = (*e + 1) % 10; 
+            int bytes = fread(buf, 1, PAYLOAD_SIZE, fp);
+            //if (bytes == PAYLOAD_SIZE){ 
+            buildPkt(&pkts[*e], *nextSeqNum, 0, 0, 0, 0, 0, bytes, buf);
+            resetbuf(buf); 
+            sendto(sockfd, &pkts[*e], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
+            *nextSeqNum += PKT_SIZE; 
+            //}  
+            }
+        if (isFull(s,e) == 1){ 
+            case1(buf, nextSeqNum,  s, e, pkts, sockfd, fp, recvpkt, servaddr, servaddrlen);
+        }
+
+        if(isFull(s,e) == 2 && feof(fp)){ //!full and !empty
+            //clear window 
+            while(isFull(s,e) != 0 ){ //loop until window empty
+                if (receiveAcks(s, e, pkts, sockfd, &recvpkt, servaddr, servaddrlen) == 1){ 
+                    break; 
+                }   
+         }
+        }            //if bytes != 512, build pkt padded w 0s
+    }
+
+    void resetBuf(char *buf){ 
+        for(int i = 0; i < sizeof(buf); i++){ 
+            buf[i] = '0'; 
+        }
+    }
 // =====================================
 
 int main (int argc, char *argv[])
@@ -234,85 +276,16 @@ int main (int argc, char *argv[])
     struct packet ackpkt;
     struct packet pkts[WND_SIZE];
     int s = 0;
-    int e = 0;
+    int e = -1;
     int full = 0;
     int baseNum = 0; 
-    int nextSeqNum = 0; 
+    int nextSeqNum = rand() % MAX_SEQN;
+; 
 
     // =====================================
     // Send First Packet (ACK containing payload)
 
     // ===== send 10 packets ========
-
-        /* 
-        case 1: pkts is full, fp is not EOF 
-            if(pkts is full and not EOF): 
-                chekc for acks 
-                if(receive ack):
-                    base = getacknum(rcvpkt)+1
-                    kick the packet out of the window
-                    go back to while(pkts is not filled) 
-                                if(receive ack):
-                    base = getacknum(rcvpkt)+1
-                    kick the packet out of the window s 
-            if(EOF): 
-                break 
-            if (pkts is not full and not EOF)
-                case2()
-
-        func case 2: pkts is not full 
-             while(pkts is not filled AND not EOF):    
-                check ack  = if receive ack, kick out the packet, base++
-                read file and buildPkt, send packet, push it(not-yet-acked) into pkts
-                check ack  = if receive ack, kick out the packet, base++
-                            
-                //nextseqnum = first unsent packet in pkts
-                //base = first not-yet-acked in pkts
-
-            if (EOF): 
-                break 
-            if(pkts is filled and not EOF): 
-                case1() 
-
-        terminate connection 
-
-        //things to figure out:    
-            //keep track of nextSeqNum and Base 
-            //keep track of whether payload is full, else pad with 0s
-            //how to check for acks? (check recvFrom ack flag )
-
-        */  
-        /*
-
-        
-           
-
-
-            if(EOF):
-                break
-            
-
-
-        while(data left in message and buffer not full)
-            if msg > 512 bytes
-                read 512 bytes, put into packet 
-            else 
-                read msg_len bytes and pad with 0s to 512
-            
-            put packet into client buffer (if there's space in window)
-                if window full of unacked pkts, wait until window gets ack 
-
-
-            from buffer/window: 
-                while (unsent packets in buffer = nextseqnum < base + N )
-                    send oldest unsent packets to server ( sendto() )
-                        keep packet in buffer (as unacked/sent pkt) until acked 
-                            if window receives ack (assume it is the oldest unacked)- remove acked packet from window, open window to accept unsent pkt 
-                    nextseqnum ++ 
-
-        
-        */
-    // ===== finish break up files into packets ========
 
 
 
@@ -342,41 +315,19 @@ int main (int argc, char *argv[])
     //  seqnum = bits that is expected from the next msg
 
     /* 
-    int bytes = fp.size() ; 
-    int n = nextSeqNum ; 
-    int ackNum = (synackpkt.seqnum + 1) % MAX_SEQN
-    
-    while(fp != EOF; and pn < WND_SIZE) : 
-        seqNum ++ 1; = 1
-        ackNum 
-        n += 1; 
-        if(bytes >= 512){
-;            m = fread(buf, 1, PAYLOaD_SIZE, fp);
-        buildPkt(&pkts[n], seqNum, ackNum, 0, 0, 0, 0, m, buf);
-        
-            bytes -= 512; 
-        } 
-        else{ 
-            m = fread(buf, 1, bytes, fp)
-            //pad with 0s till 512 
-            bytes = 0;  
-        }
-
-        //reset n, 
-        //account for sent, unacked packets 
-
-
-    */ 
-
-    while (1) {
-        /* receive ACK of first packet */
+        while (1) {
+   //     /* receive ACK of first packet */
         n = recvfrom(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
-        if (n > 0) {
-            break;
-        }
-    }
+    //    if (n > 0) {
+     //       break;
+    //    }
+    //}
 
-    // *** End of your client implementation ***
+
+
+ //*
+
+    case2(buf, nextSeqNum,  s, e, pkts, sockfd, fp, recvpkt, servaddr, servaddrlen);   
     fclose(fp);
 
     // =====================================
@@ -460,4 +411,99 @@ int main (int argc, char *argv[])
                 buf[i] = '0'; 
         }
     }
+*/// ===== send 10 packets ========
+
+        /* 
+        case 1: pkts is full, fp is not EOF 
+            if(pkts is full and not EOF): 
+                chekc for acks 
+                if(receive ack):
+                    base = getacknum(rcvpkt)+1
+                    kick the packet out of the window
+                    go back to while(pkts is not filled) 
+                                if(receive ack):
+                    base = getacknum(rcvpkt)+1
+                    kick the packet out of the window s 
+            if(EOF): 
+                break 
+            if (pkts is not full and not EOF)
+                case2()
+
+        func case 2: pkts is not full 
+             while(pkts is not filled AND not EOF):    
+                check ack  = if receive ack, kick out the packet, base++
+                read file and buildPkt, send packet, push it(not-yet-acked) into pkts
+                check ack  = if receive ack, kick out the packet, base++
+                            
+                //nextseqnum = first unsent packet in pkts
+                //base = first not-yet-acked in pkts
+
+            if (EOF): 
+                break 
+            if(pkts is filled and not EOF): 
+                case1() 
+
+        terminate connection 
+
+        //things to figure out:    
+            //keep track of nextSeqNum and Base 
+            //keep track of whether payload is full, else pad with 0s
+            //how to check for acks? (check recvFrom ack flag )
+
+        */  
+        /*
+
+        
+           
+
+
+            if(EOF):
+                break
+            
+
+
+        while(data left in message and buffer not full)
+            if msg > 512 bytes
+                read 512 bytes, put into packet 
+            else 
+                read msg_len bytes and pad with 0s to 512
+            
+            put packet into client buffer (if there's space in window)
+                if window full of unacked pkts, wait until window gets ack 
+
+
+            from buffer/window: 
+                while (unsent packets in buffer = nextseqnum < base + N )
+                    send oldest unsent packets to server ( sendto() )
+                        keep packet in buffer (as unacked/sent pkt) until acked 
+                            if window receives ack (assume it is the oldest unacked)- remove acked packet from window, open window to accept unsent pkt 
+                    nextseqnum ++ 
+
+        
+        
+    // ===== finish break up files into packets ========/* 
+    int bytes = fp.size() ; 
+    int n = nextSeqNum ; 
+    int ackNum = (synackpkt.seqnum + 1) % MAX_SEQN
+    
+    while(fp != EOF; and pn < WND_SIZE) : 
+        seqNum ++ 1; = 1
+        ackNum 
+        n += 1; 
+        if(bytes >= 512){
+;            m = fread(buf, 1, PAYLOaD_SIZE, fp);
+        buildPkt(&pkts[n], seqNum, ackNum, 0, 0, 0, 0, m, buf);
+        
+            bytes -= 512; 
+        } 
+        else{ 
+            m = fread(buf, 1, bytes, fp)
+            //pad with 0s till 512 
+            bytes = 0;  
+        }
+
+        //reset n, 
+        //account for sent, unacked packets 
 */
+
+    */ 
