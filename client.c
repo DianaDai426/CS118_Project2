@@ -411,6 +411,7 @@ int main (int argc, char *argv[])
                 buf[i] = '0'; 
         }
     }
+<<<<<<< HEAD
 */// ===== send 10 packets ========
 
         /* 
@@ -506,4 +507,4 @@ int main (int argc, char *argv[])
         //account for sent, unacked packets 
 */
 
-    */ 
+
