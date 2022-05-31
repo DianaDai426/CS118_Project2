@@ -417,3 +417,7 @@ int main (int argc, char *argv[])
     }
     
         }
+
+//buffer
+//if e = s - 1 || e = 9 
+        //if buf[s] != '0' 
