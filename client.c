@@ -32,6 +32,8 @@ struct packet {
     char payload[PAYLOAD_SIZE];
 };
 
+
+
 // Printing Functions: Call them on receiving/sending/packet timeout according
 // Section 2.6 of the spec. The content is already conformant with the spec,
 // no need to change. Only call them at correct times.
@@ -39,6 +41,7 @@ void printRecv(struct packet* pkt) {
     printf("RECV %d %d%s%s%s\n", pkt->seqnum, pkt->acknum, pkt->syn ? " SYN": "", pkt->fin ? " FIN": "", (pkt->ack || pkt->dupack) ? " ACK": "");
 }
 
+void printSend(struct packet* pkt, int resend);
 void printSend(struct packet* pkt, int resend) {
     if (resend)
         printf("RESEND %d %d%s%s%s\n", pkt->seqnum, pkt->acknum, pkt->syn ? " SYN": "", pkt->fin ? " FIN": "", pkt->ack ? " ACK": "");
@@ -84,14 +87,24 @@ int isTimeout(double end) {
     return ((end - start) < 0.0);
 }
 
-void receiveAcks(int s, int e, int sockfd, struct packet ackpkt, struct sockaddr_in servaddr, int servaddrlen){
-    int n = recvfrom(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
-    printRecv(&ackpkt);
-    if(n > 0){
-        // receive an ack
-        
+int isfull(int s, int e){ // returns 1 if full
+    if (s == 0 && e == 9) { 
+            //s+= 1 
+            return 1; 
+        }
+    if (e == s - 1){
+        return 1; 
     }
 }
+
+void receiveAcks(int *s, int *e, struct packet pkts[WND_SIZE], int sockfd, struct packet *recvpkt, struct sockaddr_in servaddr, int servaddrlen){
+    int n = recvfrom(sockfd, recvpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
+    printRecv(recvpkt);
+    if(n > 0 && recvpkt->ack == 1 ){
+            //pkts[*s] = NULL;
+            *s = (*s+1)%10;
+        }
+    }
 
 /*
     case 1: pkts is full (of not-yet acked packets), fp is not EOF
