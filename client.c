@@ -22,15 +22,17 @@
 
 // Packet Structure: Described in Section 2.1.1 of the spec. DO NOT CHANGE!
 struct packet {
-    unsigned short seqnum;
-    unsigned short acknum;
-    char syn;
-    char fin;
-    char ack;
-    char dupack;
+    unsigned short seqnum; // start bit of packet
+    unsigned short acknum; // expected seqnum from next packet 
+    char syn; // 1 if it is a connection request 
+    char fin; // 1 if it is a connection close request
+    char ack; // 1 if it is an ack
+    char dupack; // 1 if it is an duplicate ack
     unsigned int length;
     char payload[PAYLOAD_SIZE];
 };
+
+
 
 // Printing Functions: Call them on receiving/sending/packet timeout according
 // Section 2.6 of the spec. The content is already conformant with the spec,
@@ -39,6 +41,7 @@ void printRecv(struct packet* pkt) {
     printf("RECV %d %d%s%s%s\n", pkt->seqnum, pkt->acknum, pkt->syn ? " SYN": "", pkt->fin ? " FIN": "", (pkt->ack || pkt->dupack) ? " ACK": "");
 }
 
+void printSend(struct packet* pkt, int resend);
 void printSend(struct packet* pkt, int resend) {
     if (resend)
         printf("RESEND %d %d%s%s%s\n", pkt->seqnum, pkt->acknum, pkt->syn ? " SYN": "", pkt->fin ? " FIN": "", pkt->ack ? " ACK": "");
@@ -82,6 +85,50 @@ int isTimeout(double end) {
     gettimeofday(&s, NULL);
     double start = (double) s.tv_sec + (double) s.tv_usec/1000000;
     return ((end - start) < 0.0);
+}
+
+int isfull(int s, int e){ // returns 1 if full
+    if (s == 0 && e == 9) { 
+            //s+= 1 
+            return 1; 
+        }
+    if (e == s - 1){
+        return 1; 
+    }
+}
+
+void receiveAcks(int *s, int *e, struct packet pkts[WND_SIZE], int sockfd, struct packet *recvpkt, struct sockaddr_in servaddr, int servaddrlen){
+    int n = recvfrom(sockfd, recvpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
+    printRecv(recvpkt);
+    if(n > 0 && recvpkt->ack == 1 ){
+            //pkts[*s] = NULL;
+            *s = (*s+1)%10;
+        }
+    }
+
+/*
+    case 1: pkts is full (of not-yet acked packets), fp is not EOF
+*/
+void case1(int s, int e, struct packet pkts[WND_SIZE], int sockfd, struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen){
+    /* assume we checked pkts is full and not EOF already */
+    int n;
+    int received = 0;
+    while(1){ // keep receiving acks
+        while(1){ // loop until receive an ack
+            int n = recvfrom(sockfd, &recvpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
+            if (n > 0 && recvpkt.ack==1){ // receive an ack
+                if (recvpkt.seqnum == pkts[s].seqnum){ // the ack is of the first packet in pkts
+                    break;
+                }
+            }
+        }
+        /* process the received ack */
+        s+=1; // kick the packet out of the window
+        received = 0; // ready to receive another ack   
+        /*
+            i did not check for EOF because no file is read
+        */
+    }
 }
 
 // =====================================
@@ -234,10 +281,7 @@ int main (int argc, char *argv[])
             //keep track of whether payload is full, else pad with 0s
             //how to check for acks? (check recvFrom ack flag )
 
-        */ 
-
-
-       }
+        */  
         /*
 
         
@@ -387,7 +431,7 @@ int main (int argc, char *argv[])
 }
 
 
-       
+/*       
        void case2(char buf[PAYLOAD_SIZE]) {
 
            while(nextseqnum >= baseNum + N && !feof(fp)){ 
@@ -409,15 +453,20 @@ int main (int argc, char *argv[])
 
 
            }
+       }
 
         void resetBuf(char *buf){ 
             for(int i = 0; i < sizeof(buf); i++){ 
                 buf[i] = '0'; 
         }
     }
+<<<<<<< HEAD
     
         }
 
 //buffer
 //if e = s - 1 || e = 9 
         //if buf[s] != '0' 
+=======
+*/
+>>>>>>> 34ba14dd8e2446b6da792169d01dec9c21b22e7d
