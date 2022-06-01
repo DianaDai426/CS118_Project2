@@ -118,6 +118,7 @@ int main (int argc, char *argv[])
 
     unsigned short seqNum = (rand() * rand()) % MAX_SEQN;
 
+//i is used to name each file 
     for (int i = 1; ; i++) {
         // =====================================
         // Establish Connection: This procedure is provided to you directly and
@@ -198,15 +199,31 @@ int main (int argc, char *argv[])
             n = recvfrom(sockfd, &recvpkt, PKT_SIZE, 0, (struct sockaddr *) &cliaddr, (socklen_t *) &cliaddrlen);
             if (n > 0) {
                 printRecv(&recvpkt);
-
+                //expected client seq num to b assigned to server ack num 
                 if (recvpkt.fin) {
+                    //if fin is send an ack w ack num = cliseqnum + 1 before FIN
                     cliSeqNum = (cliSeqNum + 1) % MAX_SEQN;
-
+                    //dont need to change seqnum bc fin has same seqnum
                     buildPkt(&ackpkt, seqNum, cliSeqNum, 0, 0, 1, 0, 0, NULL);
                     printSend(&ackpkt, 0);
                     sendto(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr*) &cliaddr, cliaddrlen);
 
                     break;
+                    //save file + teardown
+                }
+                //if a data packet, write data field to a file
+                else{ 
+                    //use file created at connection? 
+                    fwrite(recvpkt.payload, 1, recvpkt.length, fp);
+                    //for data ack num is set cliseqnum + payload byte
+                    cliSeqNum = (cliSeqNum + PAYLOAD_SIZE) % MAX_SEQN;
+                    seqNum = seqNum + 1; 
+                    buildPkt(&ackpkt, seqNum, cliSeqNum, 0, 0, 1, 0, 0, NULL);
+                    printSend(&ackpkt, 0);
+                    sendto(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr*) &cliaddr, cliaddrlen);                   
+
+
+
                 }
             }
         }
