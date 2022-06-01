@@ -212,7 +212,7 @@ int main (int argc, char *argv[])
                     //save file + teardown
                 }
                 //if a data packet, write data field to a file
-                else{ 
+                else if( cliseqnum == recvpkt.seqNum) {
                     //use file created at connection? 
                     fwrite(recvpkt.payload, 1, recvpkt.length, fp);
                     //for data ack num is set cliseqnum + payload byte
@@ -221,7 +221,6 @@ int main (int argc, char *argv[])
                     buildPkt(&ackpkt, seqNum, cliSeqNum, 0, 0, 1, 0, 0, NULL);
                     printSend(&ackpkt, 0);
                     sendto(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr*) &cliaddr, cliaddrlen);                   
-
 
 
                 }
