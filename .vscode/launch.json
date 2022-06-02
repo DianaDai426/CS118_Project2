@@ -8,26 +8,26 @@
             "name": "(lldb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/Users/mengrandai/Library/CloudStorage/OneDrive-Personal/Spring2022/CS118/Project2/client",
+            "program": "/Users/mihirhasan/Desktop/localcswork/CS118_Project2/client",
             "args": ["localhost", "5000", "testfile"],
             "stopAtEntry": false,
-            "cwd": "/Users/mengrandai/Library/CloudStorage/OneDrive-Personal/Spring2022/CS118/Project2",
+            "cwd": "/Users/mihirhasan/Desktop/localcswork/CS118_Project2",
             "environment": [],
             "externalConsole": false,
             "MIMode": "lldb"
         },
-        // {
-        //     "name": "(lldb) Launch",
-        //     "type": "cppdbg",
-        //     "request": "launch",
-        //     "program": "/Users/mengrandai/Library/CloudStorage/OneDrive-Personal/Spring2022/CS118/Project2/server",
-        //     "args": ["5000"],
-        //     "stopAtEntry": false,
-        //     "cwd": "/Users/mengrandai/Library/CloudStorage/OneDrive-Personal/Spring2022/CS118/Project2",
-        //     "environment": [],
-        //     "externalConsole": false,
-        //     "MIMode": "lldb"
-        // },
-    ],
+    //     {
+    //         "name": "(lldb) Launch",
+    //         "type": "cppdbg",
+    //         "request": "launch",
+    //         "program": "/Users/mihirhasan/Desktop/localcswork/CS118_Project2/server",
+    //         "args": ["5000"],
+    //         "stopAtEntry": false,
+    //         "cwd": "/Users/mihirhasan/Desktop/localcswork/CS118_Project2",
+    //         "environment": [],
+    //         "externalConsole": false,
+    //         "MIMode": "lldb"
+    //     },
+    // ],
     
 }
