@@ -92,9 +92,9 @@ int isTimeout(double end) {
     e = last not-yet-acked packet
 */
 int isFull(int s, int e, int *packetCount){ // returns 1 if full, 0 if empty, 2 if neither
-    if (packetCount == 10){ 
+    if (*packetCount == 10){ 
         return 1; 
-    }else if (packetCount == 0){ 
+    }else if (*packetCount == 0){ 
         return 0; 
     }else{ 
         return 2; 
@@ -104,24 +104,32 @@ int isFull(int s, int e, int *packetCount){ // returns 1 if full, 0 if empty, 2 
 int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockfd, struct packet *recvpkt, struct sockaddr_in servaddr, int servaddrlen){
     int n = recvfrom(sockfd, recvpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
     if(n > 0 && recvpkt->ack == 1 ){
-        printRecv(recvpkt);
-        if (recvpkt->acknum == pkts[*s].seqnum + pkts[*s].length){ 
+        printf("%d", *s);
+        printf("%s", ": "); 
+        int oldestSeqNum = (pkts[*s].seqnum + pkts[*s].length) % MAX_SEQN; 
+        printf("%d\n", oldestSeqNum); 
+
+        if (recvpkt->acknum == oldestSeqNum){ 
+            printRecv(recvpkt);
             //pkts[*s] = NULL;
-            packetCount -= 1; 
+            *packetCount -= 1; 
             *s = (*s+1)%10;
             return 1; // received an ack, move the window
         }
+    if(recvpkt->fin == 1){ 
+        return 2; //terminate connection 
+    }
     }
     return 0; // receives an ack, not it is ignored
 }
 /*
     case 1: pkts is full (of not-yet acked packets), fp is not EOF
 */
-void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetCount, struct packet *pkts, int sockfd, FILE* fp,  struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen);
-void case2(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetCount, struct packet *pkts, int sockfd, FILE* fp,  struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen);
+void case1(char buf[PAYLOAD_SIZE], int nextSeqNum, int *s, int *e, int *packetCount, struct packet *pkts, int sockfd, FILE* fp,  struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen);
+void case2(char buf[PAYLOAD_SIZE], int nextSeqNum, int *s, int *e, int *packetCount, struct packet *pkts, int sockfd, FILE* fp,  struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen);
 void resetBuf(char *buf);
 
-void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetCount, struct packet *pkts , int sockfd, FILE* fp,  struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen){
+void case1(char buf[PAYLOAD_SIZE], int nextSeqNum, int *s, int *e, int *packetCount, struct packet *pkts , int sockfd, FILE* fp,  struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen){
     /* assume we checked pkts is full and not EOF already */
     //int n;
     int received = 0;
@@ -145,31 +153,34 @@ void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetC
 /*
     case 2: pkts is not full, 
 */
-  void case2(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetCount, struct packet *pkts, int sockfd, FILE* fp,  struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen){
+  void case2(char buf[PAYLOAD_SIZE], int nextSeqNum, int *s, int *e, int *packetCount, struct packet *pkts, int sockfd, FILE* fp,  struct packet recvpkt, struct sockaddr_in servaddr, int servaddrlen){
         while(isFull(*s, *e, packetCount) != 1 && !feof(fp)){ 
-            receiveAcks(s, e, pkts,packetCount, sockfd, &recvpkt, servaddr, servaddrlen); 
+            receiveAcks(s, e, packetCount, pkts, sockfd, &recvpkt, servaddr, servaddrlen); 
             int bytes = fread(buf, 1, PAYLOAD_SIZE, fp);
             //if (bytes == PAYLOAD_SIZE){ 
-            buildPkt(&pkts[*e], *nextSeqNum, 0, 0, 0, 0, 0, bytes, buf);
+            buildPkt(&pkts[*e], nextSeqNum , 0, 0, 0, 0, 0, bytes, buf);
             printSend(&pkts[*e], 0);
             resetBuf(buf); 
             sendto(sockfd, &pkts[*e], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
-            packetCount += 1; 
+            *packetCount += 1; 
+            nextSeqNum += pkts[*e].length; 
+            nextSeqNum = nextSeqNum % MAX_SEQN; 
             *e = (*e + 1) % 10; 
-            *nextSeqNum += PKT_SIZE; 
             //}  
             }
         if (isFull(*s, *e, packetCount) == 1){ 
             case1(buf, nextSeqNum,  s, e, packetCount, pkts, sockfd, fp, recvpkt, servaddr, servaddrlen );
         }
 
-        if(isFull(*s, *e, packetCount) == 2 && feof(fp)){ //!full and !empty
+        if(isFull(*s, *e, packetCount) == 2 && feof(fp)){ //!full and !empty and end of file
             //clear window 
             while(isFull(*s, *e, packetCount) != 0 ){ //loop until window empty
-                if (receiveAcks(s, e, packetCount, pkts, sockfd, &recvpkt, servaddr, servaddrlen) == 1){ 
-                    break; 
-                }   
+            if(receiveAcks(s, e, packetCount, pkts, sockfd, &recvpkt, servaddr, servaddrlen) == 1){ 
+                break;
+            }
+                
          }
+
         }            //if bytes != 512, build pkt padded w 0s
     }
 
@@ -284,9 +295,7 @@ int main (int argc, char *argv[])
     int e = 0;
     int packetCount = 0; //when packetCount == 10, buffer full
     int full = 0;
-    int baseNum = 0; 
-    int nextSeqNum = rand() % MAX_SEQN;
- 
+    int baseNum = 0;  
 
     // =====================================
     // Send First Packet (ACK containing payload)
@@ -331,8 +340,8 @@ int main (int argc, char *argv[])
 
 
  //*
-    
-    case2(buf, nextSeqNum, &s, &e, &packetCount, pkts, sockfd, fp, ackpkt, servaddr, servaddrlen);   
+    int nextseqnum = (seqNum + pkts[0].length) % MAX_SEQN; 
+    case2(buf, nextseqnum, &s, &e, &packetCount, pkts, sockfd, fp, ackpkt, servaddr, servaddrlen);   
     fclose(fp);
 
     // =====================================

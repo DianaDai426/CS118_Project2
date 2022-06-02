@@ -216,11 +216,11 @@ int main (int argc, char *argv[])
                     //use file created at connection? 
                     fwrite(recvpkt.payload, 1, recvpkt.length, fp);
                     //for data ack num is set cliseqnum + payload byte
-                    cliSeqNum = (cliSeqNum + PAYLOAD_SIZE) % MAX_SEQN;
-                    seqNum = seqNum + 1; 
                     buildPkt(&ackpkt, seqNum, cliSeqNum, 0, 0, 1, 0, 0, NULL);
+                    sendto(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr*) &cliaddr, cliaddrlen);  
                     printSend(&ackpkt, 0);
-                    sendto(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr*) &cliaddr, cliaddrlen);                   
+                    cliSeqNum = (cliSeqNum + recvpkt.length) % MAX_SEQN;
+                    seqNum = seqNum + 1; 
 
 
                 }
