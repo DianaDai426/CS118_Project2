@@ -3,8 +3,8 @@ USERID=123456789
 default: build
 
 build: server.c client.c
-	gcc -Wall -Wextra -o server server.c
-	gcc -Wall -Wextra -o client client.c
+	gcc -Wall -Wextra -g -o server server.c
+	gcc -Wall -Wextra -g -o client client.c
 
 clean:
 	rm -rf *.o server client *.tar.gz

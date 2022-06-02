@@ -212,7 +212,7 @@ int main (int argc, char *argv[])
                     //save file + teardown
                 }
                 //if a data packet, write data field to a file
-                else if( cliseqnum == recvpkt.seqNum) {
+                else if( cliSeqNum == recvpkt.seqnum) {
                     //use file created at connection? 
                     fwrite(recvpkt.payload, 1, recvpkt.length, fp);
                     //for data ack num is set cliseqnum + payload byte
