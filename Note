@@ -1,0 +1,8 @@
+implementation:
+1. pkts will not contains packets that 
+
+
+
+Problem:
+1. isFull: s==e and array is empty
+2. 

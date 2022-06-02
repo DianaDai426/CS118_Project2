@@ -87,6 +87,10 @@ int isTimeout(double end) {
     return ((end - start) < 0.0);
 }
 
+/*
+    s = first not-yet-acked packet
+    e = last not-yet-acked packet
+*/
 int isFull(int s, int e){ // returns 1 if full
     if (s == 0 && e == 9) { 
             //s+= 1 
@@ -103,8 +107,8 @@ int isFull(int s, int e){ // returns 1 if full
 
 int receiveAcks(int *s, int *e, struct packet pkts[WND_SIZE], int sockfd, struct packet *recvpkt, struct sockaddr_in servaddr, int servaddrlen){
     int n = recvfrom(sockfd, recvpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
-    printRecv(recvpkt);
     if(n > 0 && recvpkt->ack == 1 ){
+        printRecv(recvpkt);
         if (recvpkt->seqnum == pkts[*s].seqnum){ 
             //pkts[*s] = NULL;
             *s = (*s+1)%10;
@@ -152,6 +156,7 @@ void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, struct packe
             int bytes = fread(buf, 1, PAYLOAD_SIZE, fp);
             //if (bytes == PAYLOAD_SIZE){ 
             buildPkt(&pkts[*e], *nextSeqNum, 0, 0, 0, 0, 0, bytes, buf);
+            printSend(&pkts[*e], 0);
             resetBuf(buf); 
             sendto(sockfd, &pkts[*e], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
             *nextSeqNum += PKT_SIZE; 
@@ -240,7 +245,7 @@ int main (int argc, char *argv[])
     buildPkt(&synpkt, seqNum, 0, 1, 0, 0, 0, 0, NULL);
 
     printSend(&synpkt, 0);
-    /* TCP SYN */
+    /* send TCP SYN */
     sendto(sockfd, &synpkt, PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
     double timer = setTimer();
     int n;
@@ -283,28 +288,25 @@ int main (int argc, char *argv[])
     int full = 0;
     int baseNum = 0; 
     int nextSeqNum = rand() % MAX_SEQN;
-; 
+ 
 
     // =====================================
     // Send First Packet (ACK containing payload)
 
-    // ===== send 10 packets ========
-
-
-
     m = fread(buf, 1, PAYLOAD_SIZE, fp);
     //buildPkt(struct packet* pkt, unsigned short seqnum, unsigned short acknum, char syn, char fin, char ack, char dupack, unsigned int length, const char* payload)
 
-                                            /* syn = 0, fin = 0, ack = 1, dupack = 0 */
+                        /*  seqNum,  ackNum,                     syn = 0, fin = 0, ack = 1, dupack = 0 */
     buildPkt(&pkts[0], seqNum, (synackpkt.seqnum + 1) % MAX_SEQN, 0, 0, 1, 0, m, buf);
     printSend(&pkts[0], 0);
-    /* send ACK for SYNACK */
+    /* send ACK containing payload */
     sendto(sockfd, &pkts[0], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
     timer = setTimer();
+
+    /* after sending the pkt[0], set dupack = 1 in case pkt[0] is to be resent  */
                                             /* syn = 0, fin = 0, ack = 0, dupack = 1 */
     buildPkt(&pkts[0], seqNum, (synackpkt.seqnum + 1) % MAX_SEQN, 0, 0, 0, 1, m, buf);
 
-    e = 1;
 
     // =====================================
     // *** TODO: Implement the rest of reliable transfer in the client ***
@@ -320,17 +322,17 @@ int main (int argc, char *argv[])
     /* 
         while (1) {
    //     /* receive ACK of first packet */
-        n = recvfrom(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
+    // n = recvfrom(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
     //    if (n > 0) {
      //       break;
-    //    }
-    //}
-
+    //  -1  0  1  2  3  4  5  6  7  8  9
+    //      s                            
+    //                                 e
 
 
  //*
 
-    case2(buf, nextSeqNum,  s, e, pkts, sockfd, fp, ackpkt, servaddr, servaddrlen);   
+    case2(buf, nextSeqNum, s, e, pkts, sockfd, fp, ackpkt, servaddr, servaddrlen);   
     fclose(fp);
 
     // =====================================
