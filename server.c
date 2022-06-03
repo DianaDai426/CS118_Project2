@@ -221,7 +221,11 @@ int main (int argc, char *argv[])
                     buildPkt(&ackpkt, seqNum, cliSeqNum, 0, 0, 1, 0, 0, NULL);
                     sendto(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr*) &cliaddr, cliaddrlen);  
                     printSend(&ackpkt, 0);
+                    buildPkt(&ackpkt, seqNum, cliSeqNum, 0, 0, 0, 1, 0, NULL);
 
+                }else if (recvpkt.seqnum != cliSeqNum){
+                    sendto(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr*) &cliaddr, cliaddrlen);  
+                    printSend(&ackpkt, 0);
 
                 }
             }

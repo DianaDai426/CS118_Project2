@@ -1,4 +1,4 @@
-make --dry-run --keep-going --print-directory
+make --dry-run --always-make --keep-going --print-directory
 make: Entering directory `/Users/mengrandai/Library/CloudStorage/OneDrive-Personal/Spring2022/CS118/Project2'
 gcc -Wall -Wextra -g -o server server.c
 gcc -Wall -Wextra -g -o client client.c
