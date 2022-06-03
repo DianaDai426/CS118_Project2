@@ -225,7 +225,8 @@ int main (int argc, char *argv[])
 
                 }else if (recvpkt.seqnum != cliSeqNum){
                     sendto(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr*) &cliaddr, cliaddrlen);  
-                    printSend(&ackpkt, 0);
+                    printSend(&ackpkt, 1);
+                    printf("DUPACK");
 
                 }
             }
