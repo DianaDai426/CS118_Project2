@@ -223,7 +223,7 @@ int main (int argc, char *argv[])
                     printSend(&ackpkt, 0);
                     buildPkt(&ackpkt, seqNum, cliSeqNum, 0, 0, 0, 1, 0, NULL);
 
-                }else if (recvpkt.seqnum != cliSeqNum){
+                }else {//if (recvpkt.seqnum != cliSeqNum){
                     sendto(sockfd, &ackpkt, PKT_SIZE, 0, (struct sockaddr*) &cliaddr, cliaddrlen);  
                     printf("\nDUPACK: ");
                     printSend(&ackpkt, 1);

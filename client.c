@@ -54,6 +54,8 @@ void printSend(struct packet* pkt, int resend) {
 void printTimeout(struct packet* pkt) {
     printf("TIMEOUT %d\n", pkt->seqnum);
 }
+int isCumulativeAck(int *s, int *e, struct packet *pkts, struct packet *recvpkt, int *newS); 
+
 
 // Building a packet by filling the header and contents.
 // This function is provided to you and you can use it directly
@@ -102,6 +104,36 @@ int isFull(int s, int e, int *packetCount){ // returns 1 if full, 0 if empty, 2 
         return 2; 
     }
 }
+
+int isCumulativeAck(int *s, int *e, struct packet *pkts, struct packet *recvpkt, int *newS){ 
+        if(*e > *s){
+            for(int i = *s; i< *e; i+=1){
+                if (recvpkt->acknum == ((pkts[i].seqnum + pkts[i].length) % MAX_SEQN )){ 
+                    *newS = (i + 1) % 10; 
+                    return 1; 
+                }
+            }
+        }
+        else if (*e < *s || *e == *s){ 
+            for (int i = *s; i < 10; i += 1){ 
+                if (recvpkt->acknum ==( (pkts[i].seqnum + pkts[i].length) % MAX_SEQN) ){ 
+                    *newS = (i + 1) % 10; 
+                    return 1; 
+                }
+
+            }
+            for (int i = 0; i < *e; i += 1){ 
+                 if (recvpkt->acknum == ((pkts[i].seqnum + pkts[i].length) % MAX_SEQN) ){ 
+                    *newS = (i + 1) % 10; 
+                    return 1; 
+                }
+            }
+
+        }
+        return 0; 
+}
+
+
 /*/*                                                  !!! pass in a pointer !!!*/
 int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockfd, struct packet *recvpkt, struct sockaddr_in servaddr, int servaddrlen, int *currAckNum, int *timerOnData, double *timer){
     int n = recvfrom(sockfd, recvpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
@@ -137,29 +169,24 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
             //}
             return 1; // received an ack, move the window
         }
+        
 
-        //is recv->acknum one of the packets that was sent after pkts[*s]
-        //for (i > s and i <unacked elements in window)
-        //      if recvpkt->acknum = (pkts[i] + 512) % MAXSEQN
-        // 
-        //
-        //
-        //if (recvpkt->acknum > oldestSeqNum ){ 
-
-        // int isCumulativeAck = 0; 
-        // if(i)
-        // for (int i = *s; i < *e )
-
-
-        if (recvpkt->acknum > oldestSeqNum){ 
+        int newS = -1; 
+        if (isCumulativeAck(s, e, pkts, recvpkt, &newS) == 1 ){ 
             printf("OUT OF ORDER ACK \n");
             printRecv(recvpkt);
             //printf("oldestseqnum: "); 
             //printf("%d \n", oldestSeqNum); 
-            int increment = (recvpkt->acknum - oldestSeqNum) / 512; 
-            if ((recvpkt->acknum - oldestSeqNum) - (512 * increment ) > 0 ){ 
-                increment += 1; 
+            //int increment = (recvpkt->acknum - oldestSeqNum) / 512; 
+            int increment = -1; 
+            if (newS > *s){
+                increment = newS - *s; 
+            }else {
+                increment = (10 - *s) + newS; 
             }
+            // if ((recvpkt->acknum - oldestSeqNum) - (512 * increment ) > 0 ){ 
+            //     increment += 1; 
+            // }
             printf("increment: ");
             printf("%d \n", increment);            
             *packetCount -= increment; 
@@ -287,6 +314,7 @@ void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetC
 
         if(feof(fp)){ //!full and !empty and end of file
             //clear window 
+            printf("\n end of file\n");
             while(isFull(*s, *e, packetCount) != 0 ){ //loop until window empty
                 if (isTimeout(*timer)){
                     printf("timeout 3\n");

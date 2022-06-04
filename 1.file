@@ -188,4 +188,170 @@ Procedures at the receiver are as follows:
 in-order byte expected from the sender. For example, the receiver has got bytes 0 - 511 and 1024
 - 1535; The next in-order byte is 512. So when the segment of byte 1536 - 2047 arrives next, the
 receiver will acknowledge this packet with ACK number 512.
-– Any out-of-order packe
+– Any out-of-order packet and duplicate packet (which has been received before) is directly dis-
+carded.
+•For Selective Repeat scheme:
+– The sender keeps a timer for each unacknowledged packet. Retransmission of a certain packet is
+triggered only when the corresponding timer is expired.
+– The receiver acknowledges every packet with ACK number = sequence number of the last byte
+of that packet+1. The ACK is not cumulative. For example, when the packet of bytes 0 - 511 is
+received, the receiver will send back ACK with number 512.
+2.2.3 Sample Output
+Please check the sample output here or directly copy past the URL:
+https://docs.google.com/document/d/1N1Vpp7jkCBEDKFTbNyCDcLukKYvIA1pMFSoUAHMuNjI/edit?usp=sharing
+5
+UCLA CS 118 Project 2, Spring 2022
+2.2.4 Loss emulation for testing
+We will test your reliable transport protocol in unreliable conditions. However, we will only test under the
+packet loss. You can safely assume there are no corruption, no reordering, and no duplication of the packets
+in transmit.
+Although using UDP does not ensure reliability of data transfer, the actual rate of packet loss or corrup-
+tion in LAN or local loopback may be too low to test your applications. Therefore, we are going to emulate
+packet loss. We provide two ways for emulation, you can freely choose one according to your settings.
+Regardless of the simulation method you choose, there are two requirements:
+•The file transmission should be completed successfully, unless the packet loss rate is set to 100%.
+•The timer on both the client and the server should work correctly to retransmit the lost packet(s).
+Method 1: Using the tc command in Linux.
+Note: this method requires a linux system with root permission, and it has to be applied on the proper
+network interface.
+The following commands are listed here for your reference to adjust parameters of the emulation. More ex-
+amples can be found in http://www.linuxfoundation.org/collaborate/workgroups/networking/netem.
+1. To check the current parameters for a given network interface (e.g. lo0 for localhost; The interface
+name of localhost may differ on your laptop, you can figure it out by command ifconfig ):
+tc qdisc show dev lo0
+2. If network emulation has not yet been setup or have been deleted, you can add a configuration called
+root it to a given interface, with 10% loss without delay emulation for example:
+tc qdisc add dev lo0 root netem loss 10%
+3. To delete the network emulation:
+tc qdisc del dev lo0 root
+Method 2: Using the python script rdproxy.py .
+This method is intended for students without access to Linux system with root permission. It creates a
+userspace “proxy” between the client and the server. Instead of letting the client talk to the server directly
+like the previous method, the client communicate with the script, which automatically forwards the packets
+in between and randomly drops packet in the process. To use the script:
+1. Start the server normally on a port. For example, suppose the server runs on port 5000.
+2. Decide the port of the proxy (you need to pick a different one from the server) and the loss rate. For
+example, if the proxy port is 9999 and the loss rate is 10%, you need to run:
+python3 rdproxy.py 5000 9999 0.1
+3. Launch the client. In order to emulate the packet loss, the client will communicate with the proxy
+script (port 9999) instead of using port 5000 to directly communicate with the server.
+3 Submission and Demo
+3.1 Submission
+This project is due June 3th, 2022 at 23:59 PT. Late submission is allowed by Sunday, June 5th (20%
+deduction on Saturday, 40% deduction on Sunday). Put all your files into a directory, compress the directory
+and generate a UID.tar.gz where UID is your UCLA ID. Your submission should include the following files:
+6
+UCLA CS 118 Project 2, Spring 2022
+•Your source code (e.g. server.c, client.c). The code of the server and the client can be several files.
+•A Makefile. TAs will only type make to compile your code.
+•A README.md which contains:
+– Your name, email, and UCLA ID;
+– The high level design of your server and client (one paragraph);
+– The problems you ran into and how you solved the problems (up to three paragraphs);
+– List of additional libraries / online tutorials / code examples (except class website) you have been
+using.
+3.2 Demo Requirements
+1. Sign up for demo: TA will distribute the demo sign-up sheet in Week 8.
+2. Testing files and scripts: TA will release testing files and scripts after the due date. So as the details
+of demo. You need to download the testing files and scripts and learn how to run it before the demo.
+3. Demo day:
+•TAs will ask you to demo the function step-by-step on an up-to-date Linux system.
+•You will use make to compile your programs, run your programs to deliver a test file from the
+client side to the server side. Your program should print out operations according to the defined
+format, and you should also be able to explain the delivery process. You will be asked to run test
+scripts. TAs may ask you to use different values for tc command to test your program. TAs will
+ask you to compare the received files with the sent ones using the Linux program diff.
+•After the demo, TAs may ask you a few questions and you need to answer them. All question will
+be related to your project implementation. Q&A and slides are counted towards the total credit
+of this project.
+7
+UCLA CS 118 Project 2, Spring 2022
+A Example of connection setup and teardown
+See below for an example illustration of two clients establishing connections and transmitting files to the
+server.
+Client1 Server
+(A 500-byte file to send)
+| |
+| seq=12345, ack=0, SYN |
+| -------------------------------------> |
+| seq=221, ack=12346, SYN, ACK |
+| <------------------------------------- |
+| |
+| seq=12346, ack=222, ACK |
+| -------------------------------------> |
+| (if include 500-byte payload) |
+| seq=222, ack=12846, ACK |
+| <------------------------------------- |
+| |
+| |
+| FIN procedures to close connection |
+| <------------------------------------> |
+| (saves file 1.file) |
+| |
+close |
+connection | Client2
+(A 1000-byte file to send)
+| |
+| seq=5345, ack=0, SYN |
+| <---------------------------------- |
+| seq=4321, ack=5346, SYN, ACK |
+| ----------------------------------> |
+| |
+| seq=5346, ack=4322, ACK |
+| <---------------------------------- |
+| (if includes 512-byte payload) |
+| |
+| seq=5858, ack=0 |
+| <---------------------------------- |
+| (if includes 488-byte payload) |
+| |
+| seq=4322, ack=5858, ACK |
+| ----------------------------------> |
+| |
+| seq=4322, ack=6346, ACK |
+| ----------------------------------> |
+| |
+| |
+| FIN procedures to close connection|
+| <---------------------------------> |
+| (saves file 2.file) |
+| |
+close
+connection
+8
+UCLA CS 118 Project 2, Spring 2022
+See below diagram for illustration for FIN procedures during connection teardown.
+Client Server
+(A 10000-byte file to send)
+| |
+... ...
+| (10000 bytes transferred) |
+| |
+| seq=22346, ack=0, FIN |
+| -------------------------------------> |
+| (no payload in FIN) |
+| |
+| seq=4322, ack=22347, ACK |
+| <------------------------------------- |
+| |
+| |
+| seq=4322, ack=0, FIN |
++--> | <------------------------------------- |
+2 | | seq=22347, ack=4323, ACK |
+s | | -------------------------------------> |
+e | | |
+c | ... (if ACK is lost) ...
+o | | |
+n | | seq=4322, ack=0, FIN |
+d | | <------------------------------------- |
+s | | seq=22347, ack=4323, ACK |
+| | -------------------------------------> |
+w | | |
+a | ... close
+i | | connection
+t | |
+| |
++--> |
+close
+connection
+9
