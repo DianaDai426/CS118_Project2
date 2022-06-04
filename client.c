@@ -137,6 +137,20 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
             //}
             return 1; // received an ack, move the window
         }
+
+        //is recv->acknum one of the packets that was sent after pkts[*s]
+        //for (i > s and i <unacked elements in window)
+        //      if recvpkt->acknum = (pkts[i] + 512) % MAXSEQN
+        // 
+        //
+        //
+        //if (recvpkt->acknum > oldestSeqNum ){ 
+
+        // int isCumulativeAck = 0; 
+        // if(i)
+        // for (int i = *s; i < *e )
+
+
         if (recvpkt->acknum > oldestSeqNum){ 
             printf("OUT OF ORDER ACK \n");
             printRecv(recvpkt);
@@ -146,8 +160,8 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
             if ((recvpkt->acknum - oldestSeqNum) - (512 * increment ) > 0 ){ 
                 increment += 1; 
             }
-           // printf("increment: ");
-            //printf("%d \n", increment);            
+            printf("increment: ");
+            printf("%d \n", increment);            
             *packetCount -= increment; 
             *s = (*s+increment)%10;
             printf("restart timer on %d\n", pkts[*s].seqnum);
@@ -155,13 +169,17 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
             *timerOnData = 1;  
             // need to restart the timer here
         }
+
     }
     return 0; // receives an ack, but it is ignored
 }
 
 void resendWindow(int *s, int*e, struct packet *pkts, int *packetCount, int *timerOnData, double *timer, int sockfd, struct sockaddr_in servaddr, int servaddrlen, struct packet *recvpkt, int *currAckNum){ // upon timeout, resennd every packet in the window
     printf("RESEND WINDOW"); 
-    sendto(sockfd, &pkts[*s], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
+    //sendto(sockfd, &pkts[*s], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
+    printf("Window[s] = " ); 
+    printSend(&pkts[*s], 1);
+    printf("s: %d, e: %d\n", *s, *e);
     if(*e > *s){
         for(int i = *s; i< *e; i+=1){
             sendto(sockfd, &pkts[i], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
@@ -174,7 +192,7 @@ void resendWindow(int *s, int*e, struct packet *pkts, int *packetCount, int *tim
 
         }
     }
-    else if (*e < *s){ 
+    else if (*e < *s || *e == *s){ 
         for (int i = *s; i < 10; i += 1){ 
             sendto(sockfd, &pkts[i], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
             printSend(&pkts[i], 1);
@@ -193,6 +211,8 @@ void resendWindow(int *s, int*e, struct packet *pkts, int *packetCount, int *tim
 
         }
     }
+
+    
 }
 
 /*
@@ -214,6 +234,7 @@ void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetC
                  if (*timerOnData == 1 &&  isTimeout(*timer)){
                     printf("\ntimeout 1\n");
                     printTimeout(&pkts[*s]); 
+                    
                     //(int *s, int*e, struct packet *pkts, int *packetCount, int *timerOnData, double *timer, int sockfd, struct sockaddr_in servaddr, int servaddrlen, struct packet recvpkt, int *currAckNum)
                     resendWindow(s, e, pkts, packetCount, timerOnData, timer, sockfd, servaddr, servaddrlen, recvpkt, currAckNum);
                 }
