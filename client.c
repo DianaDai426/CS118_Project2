@@ -145,7 +145,10 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
             printf("%d \n", increment);            
             *packetCount -= increment; 
             *s = (*s+increment)%10;
-
+            printf("restart timer on %d\n", pkts[*s].seqnum);
+            *timer = setTimer();
+            *timerOnData = 1;  
+            // need to restart the timer here
         }
     }
     return 0; // receives an ack, but it is ignored
@@ -203,6 +206,7 @@ void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetC
     if(isFull(*s, *e, packetCount)== 1 ) {   
         while(1){ // loop until receive an ack
                  if (*timerOnData == 1 &&  isTimeout(*timer)){
+                    printf("\ntimeout 1\n");
                     printTimeout(&pkts[*s]); 
                     //(int *s, int*e, struct packet *pkts, int *packetCount, int *timerOnData, double *timer, int sockfd, struct sockaddr_in servaddr, int servaddrlen, struct packet recvpkt, int *currAckNum)
                     resendWindow(s, e, pkts, packetCount, timerOnData, timer, sockfd, servaddr, servaddrlen, recvpkt, currAckNum);
@@ -229,6 +233,7 @@ void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetC
 
             if (*timerOnData==1 && isTimeout(*timer)){
                 //do something
+                printf("timeout 2\n");
                 printTimeout(&pkts[*s]); 
                 resendWindow(s, e, pkts, packetCount, timerOnData, timer, sockfd, servaddr, servaddrlen, recvpkt, currAckNum);
             }
@@ -257,6 +262,7 @@ void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetC
             //clear window 
             while(isFull(*s, *e, packetCount) != 0 ){ //loop until window empty
                 if (isTimeout(*timer)){
+                    printf("timeout 3\n");
                     printTimeout(&pkts[*s]); 
                     resendWindow(s, e, pkts, packetCount, timerOnData, timer, sockfd, servaddr, servaddrlen, recvpkt, currAckNum);
                 }
