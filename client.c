@@ -137,6 +137,7 @@ int isCumulativeAck(int *s, int *e, struct packet *pkts, struct packet *recvpkt,
 /*/*                                                  !!! pass in a pointer !!!*/
 int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockfd, struct packet *recvpkt, struct sockaddr_in servaddr, int servaddrlen, int *currAckNum, int *timerOnData, double *timer){
     int n = recvfrom(sockfd, recvpkt, PKT_SIZE, 0, (struct sockaddr *) &servaddr, (socklen_t *) &servaddrlen);
+    printRecv(recvpkt);
     // if (n > 0 && recvpkt->dupack == 1){ 
     //         printRecv(recvpkt); 
     //         //printf("RECV DUPACK \n");
@@ -150,7 +151,7 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
 
         if (recvpkt->acknum == ((oldestSeqNum+ pkts[*s].length) % MAX_SEQN)){ 
             //printf("IN ORDER ACK \n");
-            printRecv(recvpkt);
+            
             //printf("oldestseqnum: "); 
             //printf("%d \n", oldestSeqNum); 
 
@@ -174,7 +175,6 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
         int newS = -1; 
         if (isCumulativeAck(s, e, pkts, recvpkt, &newS) == 1 ){ 
             //printf("OUT OF ORDER ACK \n");
-            printRecv(recvpkt);
             //printf("oldestseqnum: "); 
             //printf("%d \n", oldestSeqNum); 
             //int increment = (recvpkt->acknum - oldestSeqNum) / 512; 
@@ -205,7 +205,6 @@ void resendWindow(int *s, int*e, struct packet *pkts, int *packetCount, int *tim
     //printf("RESEND WINDOW"); 
     //sendto(sockfd, &pkts[*s], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
     //printf("Window[s] = " ); 
-    printSend(&pkts[*s], 1);
     //printf("s: %d, e: %d\n", *s, *e);
     if(*e > *s){
         for(int i = *s; i< *e; i+=1){
