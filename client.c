@@ -112,17 +112,21 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
     if(n > 0 && recvpkt->ack == 1 ){
         //printf("%d", *s);
        // printf("%s", ": "); 
-        int oldestSeqNum = (pkts[*s].seqnum + pkts[*s].length) % MAX_SEQN; 
+        int oldestSeqNum = pkts[*s].seqnum ; 
         //printf("%d\n", oldestSeqNum); 
         //for testing purposes
 
-        if (recvpkt->acknum == oldestSeqNum){ 
+        if (recvpkt->acknum == ((oldestSeqNum+ pkts[*s].length) % MAX_SEQN)){ 
+            //printf("IN ORDER ACK \n");
             printRecv(recvpkt);
+            //printf("oldestseqnum: "); 
+            //printf("%d \n", oldestSeqNum); 
 
             //pkts[*s] = NULL;
             *packetCount -= 1; 
             *s = (*s+1)%10;
             *currAckNum = recvpkt->seqnum + 1; 
+           //oldestSeqNum = (oldestSeqNum+ pkts[*s].length) % MAX_SEQN; 
 
             //if(isFull != 0){
             *timer = setTimer(); 
@@ -136,13 +140,14 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
         if (recvpkt->acknum > oldestSeqNum){ 
             printf("OUT OF ORDER ACK \n");
             printRecv(recvpkt);
-
+            //printf("oldestseqnum: "); 
+            //printf("%d \n", oldestSeqNum); 
             int increment = (recvpkt->acknum - oldestSeqNum) / 512; 
             if ((recvpkt->acknum - oldestSeqNum) - (512 * increment ) > 0 ){ 
                 increment += 1; 
             }
-            printf("increment: ");
-            printf("%d \n", increment);            
+           // printf("increment: ");
+            //printf("%d \n", increment);            
             *packetCount -= increment; 
             *s = (*s+increment)%10;
 
@@ -153,6 +158,7 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
 
 void resendWindow(int *s, int*e, struct packet *pkts, int *packetCount, int *timerOnData, double *timer, int sockfd, struct sockaddr_in servaddr, int servaddrlen, struct packet *recvpkt, int *currAckNum){ // upon timeout, resennd every packet in the window
     printf("RESEND WINDOW"); 
+    sendto(sockfd, &pkts[*s], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
     if(*e > *s){
         for(int i = *s; i< *e; i+=1){
             sendto(sockfd, &pkts[i], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
@@ -376,8 +382,8 @@ int main (int argc, char *argv[])
 
     struct packet ackpkt;
     struct packet pkts[WND_SIZE];
-    int s = 0;
-    int e = 0;
+    int s = 0; //oldest unacked packet 
+    int e = 0; //most recent unacked packet + 1
     int packetCount = 0; //when packetCount == 10, buffer full
     int full = 0;
     int baseNum = 0;  
