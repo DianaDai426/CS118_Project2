@@ -173,7 +173,7 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
 
         int newS = -1; 
         if (isCumulativeAck(s, e, pkts, recvpkt, &newS) == 1 ){ 
-            printf("OUT OF ORDER ACK \n");
+            //printf("OUT OF ORDER ACK \n");
             printRecv(recvpkt);
             //printf("oldestseqnum: "); 
             //printf("%d \n", oldestSeqNum); 
@@ -187,11 +187,11 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
             // if ((recvpkt->acknum - oldestSeqNum) - (512 * increment ) > 0 ){ 
             //     increment += 1; 
             // }
-            printf("increment: ");
-            printf("%d \n", increment);            
+            //printf("increment: ");
+            //printf("%d \n", increment);            
             *packetCount -= increment; 
             *s = (*s+increment)%10;
-            printf("restart timer on %d\n", pkts[*s].seqnum);
+            //printf("restart timer on %d\n", pkts[*s].seqnum);
             *timer = setTimer();
             *timerOnData = 1;  
             // need to restart the timer here
@@ -202,11 +202,11 @@ int receiveAcks(int *s, int *e, int *packetCount, struct packet *pkts, int sockf
 }
 
 void resendWindow(int *s, int*e, struct packet *pkts, int *packetCount, int *timerOnData, double *timer, int sockfd, struct sockaddr_in servaddr, int servaddrlen, struct packet *recvpkt, int *currAckNum){ // upon timeout, resennd every packet in the window
-    printf("RESEND WINDOW"); 
+    //printf("RESEND WINDOW"); 
     //sendto(sockfd, &pkts[*s], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
-    printf("Window[s] = " ); 
+    //printf("Window[s] = " ); 
     printSend(&pkts[*s], 1);
-    printf("s: %d, e: %d\n", *s, *e);
+    //printf("s: %d, e: %d\n", *s, *e);
     if(*e > *s){
         for(int i = *s; i< *e; i+=1){
             sendto(sockfd, &pkts[i], PKT_SIZE, 0, (struct sockaddr*) &servaddr, servaddrlen);
@@ -259,7 +259,7 @@ void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetC
     if(isFull(*s, *e, packetCount)== 1 ) {   
         while(1){ // loop until receive an ack
                  if (*timerOnData == 1 &&  isTimeout(*timer)){
-                    printf("\ntimeout 1\n");
+                    //printf("\ntimeout 1\n");
                     printTimeout(&pkts[*s]); 
                     
                     //(int *s, int*e, struct packet *pkts, int *packetCount, int *timerOnData, double *timer, int sockfd, struct sockaddr_in servaddr, int servaddrlen, struct packet recvpkt, int *currAckNum)
@@ -287,7 +287,7 @@ void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetC
 
             if (*timerOnData==1 && isTimeout(*timer)){
                 //do something
-                printf("timeout 2\n");
+                //("timeout 2\n");
                 printTimeout(&pkts[*s]); 
                 resendWindow(s, e, pkts, packetCount, timerOnData, timer, sockfd, servaddr, servaddrlen, recvpkt, currAckNum);
             }
@@ -314,10 +314,10 @@ void case1(char buf[PAYLOAD_SIZE], int *nextSeqNum, int *s, int *e, int *packetC
 
         if(feof(fp)){ //!full and !empty and end of file
             //clear window 
-            printf("\n end of file\n");
+            //printf("\n end of file\n");
             while(isFull(*s, *e, packetCount) != 0 ){ //loop until window empty
                 if (isTimeout(*timer)){
-                    printf("timeout 3\n");
+                    //printf("timeout 3\n");
                     printTimeout(&pkts[*s]); 
                     resendWindow(s, e, pkts, packetCount, timerOnData, timer, sockfd, servaddr, servaddrlen, recvpkt, currAckNum);
                 }
